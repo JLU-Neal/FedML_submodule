@@ -66,7 +66,9 @@ class ClientManager(Observer):
     def finish(self):
         logging.info("__finish server")
         if self.backend == "MPI":
-            MPI.COMM_WORLD.Abort()
+            # MPI.COMM_WORLD.Abort()
+            logging.info("Branch MPI")
+            self.com_manager.stop_receive_message()
         elif self.backend == "MQTT":
             self.com_manager.stop_receive_message()
         elif self.backend == "GRPC":
