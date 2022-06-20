@@ -29,4 +29,8 @@ class MyMessage(object):
     MSG_ARG_KEY_TEST_ERROR = "test_error"
     MSG_ARG_KEY_TEST_NUM = "test_num_sample"
 
+    # For FedCSE
+    MSG_ARG_KEY_GRAPHMODEL_PARAMS = "graphmodel_params"
+    MSG_ARG_KEY_SETNET_PARAMS = "setnet_params"
+
 

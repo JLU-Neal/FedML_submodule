@@ -34,11 +34,13 @@ class FedAVGClientManager(ClientManager):
     def handle_message_init(self, msg_params):
         global_model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
         client_index = msg_params.get(MyMessage.MSG_ARG_KEY_CLIENT_INDEX)
+        graphmodel_params = msg_params.get(MyMessage.MSG_ARG_KEY_GRAPHMODEL_PARAMS)
+        setnet_params = msg_params.get(MyMessage.MSG_ARG_KEY_SETNET_PARAMS)
 
         if self.args.is_mobile == 1:
             global_model_params = transform_list_to_tensor(global_model_params)
 
-        self.trainer.update_model(global_model_params)
+        self.trainer.update_model(global_model_params, graphmodel_params, setnet_params)
         self.trainer.update_dataset(int(client_index))
         self.round_idx = 0
         self.__train()
@@ -50,12 +52,14 @@ class FedAVGClientManager(ClientManager):
     def handle_message_receive_model_from_server(self, msg_params):
         logging.info("handle_message_receive_model_from_server.")
         model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
+        graphmodel_params = msg_params.get(MyMessage.MSG_ARG_KEY_GRAPHMODEL_PARAMS)
+        setnet_params = msg_params.get(MyMessage.MSG_ARG_KEY_SETNET_PARAMS)
         client_index = msg_params.get(MyMessage.MSG_ARG_KEY_CLIENT_INDEX)
 
         if self.args.is_mobile == 1:
             model_params = transform_list_to_tensor(model_params)
 
-        self.trainer.update_model(model_params)
+        self.trainer.update_model(model_params, graphmodel_params, setnet_params)
         self.trainer.update_dataset(int(client_index))
         self.round_idx += 1
         self.__train()
@@ -63,13 +67,15 @@ class FedAVGClientManager(ClientManager):
             post_complete_message_to_sweep_process(self.args)
             self.finish()
 
-    def send_model_to_server(self, receive_id, weights, local_sample_num):
+    def send_model_to_server(self, receive_id, weights, local_sample_num, latest_graphmodel_params, latest_setnet_params):
         message = Message(MyMessage.MSG_TYPE_C2S_SEND_MODEL_TO_SERVER, self.get_sender_id(), receive_id)
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, weights)
         message.add_params(MyMessage.MSG_ARG_KEY_NUM_SAMPLES, local_sample_num)
+        message.add_params(MyMessage.MSG_ARG_KEY_GRAPHMODEL_PARAMS, latest_graphmodel_params)
+        message.add_params(MyMessage.MSG_ARG_KEY_SETNET_PARAMS, latest_setnet_params)
         self.send_message(message)
 
     def __train(self):
         logging.info("#######training########### round_id = %d" % self.round_idx)
-        weights, local_sample_num = self.trainer.train(self.round_idx)
-        self.send_model_to_server(0, weights, local_sample_num)
+        weights, local_sample_num, latest_graphmodel_params, latest_setnet_params = self.trainer.train(self.round_idx)
+        self.send_model_to_server(0, weights, local_sample_num, latest_graphmodel_params, latest_setnet_params)

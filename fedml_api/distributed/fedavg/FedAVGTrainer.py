@@ -19,8 +19,9 @@ class FedAVGTrainer(object):
         self.device = device
         self.args = args
 
-    def update_model(self, weights):
+    def update_model(self, weights, graphmodel_params=None, setnet_params=None):
         self.trainer.set_model_params(weights)
+        self.trainer.set_cse_params(graphmodel_params, setnet_params)
 
     def update_dataset(self, client_index):
         self.client_index = client_index
@@ -33,11 +34,13 @@ class FedAVGTrainer(object):
         self.trainer.train(self.train_local, self.device, self.args, self.client_index)
 
         weights = self.trainer.get_model_params()
-
+        latest_graphmodel_params, latest_setnet_params = self.trainer.get_cse_params()
         # transform Tensor to list
         if self.args.is_mobile == 1:
             weights = transform_tensor_to_list(weights)
-        return weights, self.local_sample_number
+            latest_graphmodel_params = transform_tensor_to_list(latest_graphmodel_params)
+            latest_setnet_params = transform_tensor_to_list(latest_setnet_params)
+        return weights, self.local_sample_number, latest_graphmodel_params, latest_setnet_params
 
     def test(self):
         # train data
