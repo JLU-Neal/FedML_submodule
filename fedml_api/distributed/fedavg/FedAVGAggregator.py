@@ -156,6 +156,7 @@ class FedAVGAggregator(object):
             return self.test_global
 
     def test_on_server_for_all_clients(self, round_idx):
+        self.args.round_idx = round_idx
         if self.trainer.test_on_the_server(self.train_data_local_dict, self.test_data_local_dict, self.device, self.args):
             return
 
