@@ -7,6 +7,10 @@ from .utils import transform_tensor_to_list, post_complete_message_to_sweep_proc
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../FedML")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../")))
+
+import experiments.experiments_manager as experiments_manager
+
 try:
     from fedml_core.distributed.communication.message import Message
     from fedml_core.distributed.server.server_manager import ServerManager
@@ -62,7 +66,7 @@ class FedAVGServerManager(ServerManager):
             # start the next round
             self.round_idx += 1
             if self.round_idx == self.round_num:
-                post_complete_message_to_sweep_process(self.args)
+                post_complete_message_to_sweep_process(self.args, is_server=True)
                 self.finish()
                 print('here')
                 return
