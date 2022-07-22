@@ -1,8 +1,7 @@
 class MyMessage(object):
     """
-    message type definition
+        message type definition
     """
-
     # server to client
     MSG_TYPE_S2C_INIT_CONFIG = 1
     MSG_TYPE_S2C_SYNC_MODEL_TO_CLIENT = 2
@@ -29,12 +28,4 @@ class MyMessage(object):
     MSG_ARG_KEY_TEST_CORRECT = "test_correct"
     MSG_ARG_KEY_TEST_ERROR = "test_error"
     MSG_ARG_KEY_TEST_NUM = "test_num_sample"
-<<<<<<< HEAD:python/fedml/simulation/mpi_p2p_mp/fedprox/message_define.py
-=======
 
-    # For FedCSE
-    MSG_ARG_KEY_GRAPHMODEL_PARAMS = "graphmodel_params"
-    MSG_ARG_KEY_SETNET_PARAMS = "setnet_params"
-
-
->>>>>>> submodule:fedml_api/distributed/fedavg/message_define.py

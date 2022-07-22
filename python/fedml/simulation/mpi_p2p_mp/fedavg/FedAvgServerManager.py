@@ -1,9 +1,26 @@
 import logging
 
 from .message_define import MyMessage
+<<<<<<< HEAD:python/fedml/simulation/mpi_p2p_mp/fedavg/FedAvgServerManager.py
 from .utils import transform_tensor_to_list
 from ....core.distributed.communication.message import Message
 from ....core.distributed.server.server_manager import ServerManager
+=======
+from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../FedML")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../")))
+
+import experiments.experiments_manager as experiments_manager
+
+try:
+    from fedml_core.distributed.communication.message import Message
+    from fedml_core.distributed.server.server_manager import ServerManager
+except ImportError:
+    from FedML.fedml_core.distributed.communication.message import Message
+    from FedML.fedml_core.distributed.server.server_manager import ServerManager
+>>>>>>> submodule:fedml_api/distributed/fedavg/FedAvgServerManager.py
 
 
 class FedAVGServerManager(ServerManager):
@@ -37,12 +54,17 @@ class FedAVGServerManager(ServerManager):
             self.args.client_num_per_round,
         )
         global_model_params = self.aggregator.get_global_model_params()
+        global_graphmodel_params, global_setnet_params = self.aggregator.get_global_cse_params()
         if self.args.is_mobile == 1:
             global_model_params = transform_tensor_to_list(global_model_params)
         for process_id in range(1, self.size):
+<<<<<<< HEAD:python/fedml/simulation/mpi_p2p_mp/fedavg/FedAvgServerManager.py
             self.send_message_init_config(
                 process_id, global_model_params, client_indexes[process_id - 1]
             )
+=======
+            self.send_message_init_config(process_id, global_model_params, global_graphmodel_params, global_setnet_params, client_indexes[process_id - 1])
+>>>>>>> submodule:fedml_api/distributed/fedavg/FedAvgServerManager.py
 
     def register_message_receive_handlers(self):
         self.register_message_receive_handler(
@@ -55,19 +77,31 @@ class FedAVGServerManager(ServerManager):
         model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
         local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)
 
+<<<<<<< HEAD:python/fedml/simulation/mpi_p2p_mp/fedavg/FedAvgServerManager.py
         self.aggregator.add_local_trained_result(
             sender_id - 1, model_params, local_sample_number
         )
+=======
+        graphmodel_params = msg_params.get(MyMessage.MSG_ARG_KEY_GRAPHMODEL_PARAMS)
+        setnet_params = msg_params.get(MyMessage.MSG_ARG_KEY_SETNET_PARAMS)
+
+        self.aggregator.add_local_trained_result(sender_id - 1, model_params, local_sample_number)
+        self.aggregator.handle_local_CSE_params_updates(sender_id - 1, graphmodel_params, setnet_params)
+>>>>>>> submodule:fedml_api/distributed/fedavg/FedAvgServerManager.py
         b_all_received = self.aggregator.check_whether_all_receive()
         logging.info("b_all_received = " + str(b_all_received))
         if b_all_received:
-            global_model_params = self.aggregator.aggregate()
+            global_model_params, global_graphmodel_params, globa_setnet_params = self.aggregator.aggregate(self.args, self.round_idx)
             self.aggregator.test_on_server_for_all_clients(self.round_idx)
 
             # start the next round
             self.round_idx += 1
             if self.round_idx == self.round_num:
+<<<<<<< HEAD:python/fedml/simulation/mpi_p2p_mp/fedavg/FedAvgServerManager.py
                 # post_complete_message_to_sweep_process(self.args)
+=======
+                post_complete_message_to_sweep_process(self.args, is_server=True)
+>>>>>>> submodule:fedml_api/distributed/fedavg/FedAvgServerManager.py
                 self.finish()
                 print("here")
                 return
@@ -91,6 +125,7 @@ class FedAVGServerManager(ServerManager):
                 global_model_params = transform_tensor_to_list(global_model_params)
 
             for receiver_id in range(1, self.size):
+<<<<<<< HEAD:python/fedml/simulation/mpi_p2p_mp/fedavg/FedAvgServerManager.py
                 self.send_message_sync_model_to_client(
                     receiver_id, global_model_params, client_indexes[receiver_id - 1]
                 )
@@ -99,13 +134,26 @@ class FedAVGServerManager(ServerManager):
         message = Message(
             MyMessage.MSG_TYPE_S2C_INIT_CONFIG, self.get_sender_id(), receive_id
         )
+=======
+                self.send_message_sync_model_to_client(receiver_id, global_model_params, global_graphmodel_params, globa_setnet_params,
+                                                       client_indexes[receiver_id - 1])
+
+    def send_message_init_config(self, receive_id, global_model_params, global_graphmodel_params, global_setnet_params, client_index):
+        message = Message(MyMessage.MSG_TYPE_S2C_INIT_CONFIG, self.get_sender_id(), receive_id)
+>>>>>>> submodule:fedml_api/distributed/fedavg/FedAvgServerManager.py
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, global_model_params)
         message.add_params(MyMessage.MSG_ARG_KEY_CLIENT_INDEX, str(client_index))
+        message.add_params(MyMessage.MSG_ARG_KEY_GRAPHMODEL_PARAMS, global_graphmodel_params)
+        message.add_params(MyMessage.MSG_ARG_KEY_SETNET_PARAMS, global_setnet_params)
         self.send_message(message)
 
+<<<<<<< HEAD:python/fedml/simulation/mpi_p2p_mp/fedavg/FedAvgServerManager.py
     def send_message_sync_model_to_client(
         self, receive_id, global_model_params, client_index
     ):
+=======
+    def send_message_sync_model_to_client(self, receive_id, global_model_params, global_graphmodel_params, globa_setnet_params, client_index):
+>>>>>>> submodule:fedml_api/distributed/fedavg/FedAvgServerManager.py
         logging.info("send_message_sync_model_to_client. receive_id = %d" % receive_id)
         message = Message(
             MyMessage.MSG_TYPE_S2C_SYNC_MODEL_TO_CLIENT,
@@ -113,5 +161,7 @@ class FedAVGServerManager(ServerManager):
             receive_id,
         )
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, global_model_params)
+        message.add_params(MyMessage.MSG_ARG_KEY_GRAPHMODEL_PARAMS, global_graphmodel_params)
+        message.add_params(MyMessage.MSG_ARG_KEY_SETNET_PARAMS, globa_setnet_params)
         message.add_params(MyMessage.MSG_ARG_KEY_CLIENT_INDEX, str(client_index))
         self.send_message(message)

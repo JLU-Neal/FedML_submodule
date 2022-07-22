@@ -41,20 +41,37 @@ class FedAVGAggregator(object):
         self.model_dict = dict()
         self.sample_num_dict = dict()
         self.flag_client_model_uploaded_dict = dict()
+        
+        self.graphmodel_list = list()
+        self.setnet_list = list()
+
         for idx in range(self.worker_num):
             self.flag_client_model_uploaded_dict[idx] = False
 
     def get_global_model_params(self):
         return self.trainer.get_model_params()
 
+    def get_global_cse_params(self):
+        return self.trainer.get_cse_params()
+
     def set_global_model_params(self, model_parameters):
         self.trainer.set_model_params(model_parameters)
+
+
+    def set_global_cse_params(self, graphmodel_params, setnet_params):
+        self.trainer.set_cse_params(graphmodel_params, setnet_params)
 
     def add_local_trained_result(self, index, model_params, sample_num):
         logging.info("add_model. index = %d" % index)
         self.model_dict[index] = model_params
         self.sample_num_dict[index] = sample_num
         self.flag_client_model_uploaded_dict[index] = True
+
+    def handle_local_CSE_params_updates(self, index, graphmodel_params, setnet_params):
+        logging.info("handle_local_CSE_params_updates. index = %d" % index)
+        self.graphmodel_list.append(graphmodel_params)
+        self.setnet_list.append(setnet_params)
+            
 
     def check_whether_all_receive(self):
         logging.debug("worker_num = {}".format(self.worker_num))
@@ -65,7 +82,7 @@ class FedAVGAggregator(object):
             self.flag_client_model_uploaded_dict[idx] = False
         return True
 
-    def aggregate(self):
+    def aggregate(self, args=None, round_idx=None):
         start_time = time.time()
         model_list = []
         training_num = 0
@@ -92,9 +109,41 @@ class FedAVGAggregator(object):
         # update the global model which is cached at the server side
         self.set_global_model_params(averaged_params)
 
+
+        averaged_graphmodel_params, averaged_setnet_params = self.trainer.get_cse_params()
+        if args is not None:
+           if round_idx % args.CSE_aggregate_rounds == 0:
+                logging.info("CSE aggregate at round %d" % round_idx)
+                # Here in CSE, we don't need to care about the local sample number and define different weights for each client
+                averaged_graphmodel_params = self.graphmodel_list[0]
+                for k in averaged_graphmodel_params.keys():
+                    for i in range(0, len(self.graphmodel_list)):
+                        local_graphmodel_params = self.graphmodel_list[i]
+                        w = 1 / len(self.graphmodel_list)
+                        if i == 0:
+                            averaged_graphmodel_params[k] = local_graphmodel_params[k] * w
+                        else:
+                            averaged_graphmodel_params[k] += local_graphmodel_params[k] * w
+
+                averaged_setnet_params = self.setnet_list[0]
+                for k in averaged_setnet_params.keys():
+                    for i in range(0, len(self.setnet_list)):
+                        local_setnet_params = self.setnet_list[i]
+                        w = 1 / len(self.setnet_list)
+                        if i == 0:
+                            averaged_setnet_params[k] = local_setnet_params[k] * w
+                        else:
+                            averaged_setnet_params[k] += local_setnet_params[k] * w
+                # update the global model which is cached at the server side, then clear the list
+                self.graphmodel_list = list()
+                self.setnet_list = list()
+                self.set_global_cse_params(averaged_graphmodel_params, averaged_setnet_params)
+
+            
+
         end_time = time.time()
         logging.info("aggregate time cost: %d" % (end_time - start_time))
-        return averaged_params
+        return averaged_params, averaged_graphmodel_params, averaged_setnet_params
 
     def client_sampling(self, round_idx, client_num_in_total, client_num_per_round):
         if client_num_in_total == client_num_per_round:
@@ -127,12 +176,17 @@ class FedAVGAggregator(object):
             return self.test_global
 
     def test_on_server_for_all_clients(self, round_idx):
+<<<<<<< HEAD:python/fedml/simulation/mpi_p2p_mp/fedavg/FedAVGAggregator.py
         if self.trainer.test_on_the_server(
             self.train_data_local_dict,
             self.test_data_local_dict,
             self.device,
             self.args,
         ):
+=======
+        self.args.round_idx = round_idx
+        if self.trainer.test_on_the_server(self.train_data_local_dict, self.test_data_local_dict, self.device, self.args):
+>>>>>>> submodule:fedml_api/distributed/fedavg/FedAVGAggregator.py
             return
 
         if (
