@@ -102,18 +102,20 @@ class FedAVGAggregator(object):
 
         averaged_graphmodel_params, averaged_setnet_params = self.trainer.get_cse_params()
         if args is not None:
-           if round_idx % args.CSE_aggregate_rounds == 0:
+        #    if round_idx % args.CSE_aggregate_rounds == 0:
+            if len(self.setnet_list) > args.client_num_in_total:
                 logging.info("CSE aggregate at round %d" % round_idx)
                 # Here in CSE, we don't need to care about the local sample number and define different weights for each client
-                averaged_graphmodel_params = self.graphmodel_list[0]
-                for k in averaged_graphmodel_params.keys():
-                    for i in range(0, len(self.graphmodel_list)):
-                        local_graphmodel_params = self.graphmodel_list[i]
-                        w = 1 / len(self.graphmodel_list)
-                        if i == 0:
-                            averaged_graphmodel_params[k] = local_graphmodel_params[k] * w
-                        else:
-                            averaged_graphmodel_params[k] += local_graphmodel_params[k] * w
+                # averaged_graphmodel_params = self.graphmodel_list[0]
+                
+                # for k in averaged_graphmodel_params.keys():
+                #     for i in range(0, len(self.graphmodel_list)):
+                #         local_graphmodel_params = self.graphmodel_list[i]
+                #         w = 1 / len(self.graphmodel_list)
+                #         if i == 0:
+                #             averaged_graphmodel_params[k] = local_graphmodel_params[k] * w
+                #         else:
+                #             averaged_graphmodel_params[k] += local_graphmodel_params[k] * w
 
                 averaged_setnet_params = self.setnet_list[0]
                 for k in averaged_setnet_params.keys():
