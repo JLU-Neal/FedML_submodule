@@ -74,6 +74,8 @@ def non_iid_partition_with_dirichlet_distribution(label_list,
 
 
 def partition_class_samples_with_dirichlet_distribution(N, alpha, client_num, idx_batch, idx_k):
+    # set seed for reproducibility
+    np.random.seed(client_num)
     np.random.shuffle(idx_k)
     # using dirichlet distribution to determine the unbalanced proportion for each client (client_num in total)
     # e.g., when client_num = 4, proportions = [0.29543505 0.38414498 0.31998781 0.00043216], sum(proportions) = 1
@@ -86,8 +88,23 @@ def partition_class_samples_with_dirichlet_distribution(N, alpha, client_num, id
 
     # generate the batch list for each client
     idx_batch = [idx_j + idx.tolist() for idx_j, idx in zip(idx_batch, np.split(idx_k, proportions))]
-    min_size = min([len(idx_j) for idx_j in idx_batch])
+    
 
+
+    # threshold size
+    threshold = 10
+    # find the index of the longest list in the idx_batch
+    max_idx = np.argmax([len(idx_j) for idx_j in idx_batch])
+    
+    # if there is an empty list, insert element from longest list
+    for i in range(client_num): 
+        if len(idx_batch[i]) < threshold:
+            extra_ele_num = threshold - len(idx_batch[i])
+            idx_batch[i] = idx_batch[i] + idx_batch[max_idx][-extra_ele_num:]
+            idx_batch[max_idx] = idx_batch[max_idx][:-extra_ele_num]
+
+    min_size = min([len(idx_j) for idx_j in idx_batch])
+    assert min_size >= threshold, 'Minimum sample size is less than threshold'
     return idx_batch, min_size
 
 
