@@ -1,9 +1,13 @@
+from cmath import log
 import logging
+import math
 import os, signal
 import sys
+import copy
+import torch
 
 from .message_define import MyMessage
-from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
+from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process, weight_flatten
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../FedML")))
@@ -25,6 +29,13 @@ class FedAMPServerManager(ServerManager):
         self.is_preprocessed = is_preprocessed
         self.preprocessed_client_lists = preprocessed_client_lists
 
+
+        # FedAMP parameters
+        self.alphaK = args.alphaK
+        self.sigma = args.sigma
+        self.uploaded_models = []
+        self.uploaded_ids = []
+
     def run(self):
         super().run()
 
@@ -37,6 +48,7 @@ class FedAMPServerManager(ServerManager):
             global_model_params = transform_tensor_to_list(global_model_params)
         for process_id in range(1, self.size):
             self.send_message_init_config(process_id, global_model_params, client_indexes[process_id - 1])
+        logging.info("send init msg")
 
     def register_message_receive_handlers(self):
         self.register_message_receive_handler(MyMessage.MSG_TYPE_C2S_SEND_MODEL_TO_SERVER,
@@ -46,6 +58,12 @@ class FedAMPServerManager(ServerManager):
         sender_id = msg_params.get(MyMessage.MSG_ARG_KEY_SENDER)
         model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
         local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)
+        if len(self.uploaded_models) == self.args.client_num_per_round:
+            self.uploaded_models = []
+            self.uploaded_ids = []
+        self.uploaded_ids.append(sender_id)
+        self.uploaded_models.append(model_params)
+
 
         self.aggregator.add_local_trained_result(sender_id - 1, model_params, local_sample_number)
         b_all_received = self.aggregator.check_whether_all_receive()
@@ -84,12 +102,46 @@ class FedAMPServerManager(ServerManager):
     def send_message_init_config(self, receive_id, global_model_params, client_index):
         message = Message(MyMessage.MSG_TYPE_S2C_INIT_CONFIG, self.get_sender_id(), receive_id)
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, global_model_params)
+        message.add_params(MyMessage.MSG_ARG_KEY_COEF_SELF, 0)
         message.add_params(MyMessage.MSG_ARG_KEY_CLIENT_INDEX, str(client_index))
         self.send_message(message)
 
     def send_message_sync_model_to_client(self, receive_id, global_model_params, client_index):
         logging.info("send_message_sync_model_to_client. receive_id = %d" % receive_id)
+
+        mu = copy.deepcopy(global_model_params)
+        for k, v in mu.items():
+            # logging.info("k = %s, v = %s" % (k, v))
+            v.data.zero_()
+        
+        coef = torch.zeros(self.args.client_num_per_round)
+        for j, mw in enumerate(self.uploaded_models):
+            if client_index != self.uploaded_ids[j]:
+                weights_i = weight_flatten(self.uploaded_models[receive_id-1])
+                weights_j = weight_flatten(mw)
+                sub = (weights_i - weights_j).view(-1)
+                sub = torch.dot(sub, sub)
+                try:
+                    coef[j] = self.alphaK * self.e(sub)
+                except IndexError:
+                    logging.info("coef_len = %d, uploaded_model_len = %d" % (len(coef), len(self.uploaded_models)))
+                    raise IndexError
+
+            else:
+                coef[j] = 0
+        coef_self = 1 - torch.sum(coef)
+        # print(i, coef)
+
+        for j, mw in enumerate(self.uploaded_models):
+            for (k, param), (k_j, param_j) in zip(mu.items(), mw.items()):
+                param.data += coef[j] * param_j
+        
         message = Message(MyMessage.MSG_TYPE_S2C_SYNC_MODEL_TO_CLIENT, self.get_sender_id(), receive_id)
-        message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, global_model_params)
+        message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, mu)
+        message.add_params(MyMessage.MSG_ARG_KEY_COEF_SELF, str(coef_self))
         message.add_params(MyMessage.MSG_ARG_KEY_CLIENT_INDEX, str(client_index))
         self.send_message(message)
+
+
+    def e(self, x):
+        return math.exp(-x/self.sigma)/self.sigma

@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import copy
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../FedML")))
@@ -34,11 +35,13 @@ class FedAMPClientManager(ClientManager):
     def handle_message_init(self, msg_params):
         global_model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
         client_index = msg_params.get(MyMessage.MSG_ARG_KEY_CLIENT_INDEX)
+        coef_self = msg_params.get(MyMessage.MSG_ARG_KEY_COEF_SELF)
 
         if self.args.is_mobile == 1:
             global_model_params = transform_list_to_tensor(global_model_params)
 
-        self.trainer.update_model(global_model_params)
+        self.trainer.update_coef_self(coef_self)
+        self.trainer.update_model(global_model_params, client=True)
         self.trainer.update_dataset(int(client_index))
         self.round_idx = 0
         self.__train()
@@ -50,11 +53,13 @@ class FedAMPClientManager(ClientManager):
     def handle_message_receive_model_from_server(self, msg_params):
         logging.info("handle_message_receive_model_from_server.")
         model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
+        coef_self = msg_params.get(MyMessage.MSG_ARG_KEY_COEF_SELF)
         client_index = msg_params.get(MyMessage.MSG_ARG_KEY_CLIENT_INDEX)
 
         if self.args.is_mobile == 1:
             model_params = transform_list_to_tensor(model_params)
 
+        self.trainer.update_coef_self(coef_self)
         self.trainer.update_model(model_params)
         self.trainer.update_dataset(int(client_index))
         self.round_idx += 1

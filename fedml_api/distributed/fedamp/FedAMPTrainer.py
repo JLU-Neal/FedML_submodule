@@ -19,8 +19,11 @@ class FedAMPTrainer(object):
         self.device = device
         self.args = args
 
-    def update_model(self, weights):
-        self.trainer.set_model_params(weights)
+    def update_model(self, weights, client=False):
+        self.trainer.set_model_params(weights, client=client)
+
+    def update_coef_self(self, coef_self):
+        self.trainer.set_coef_self(coef_self)
 
     def update_dataset(self, client_index):
         self.client_index = client_index

@@ -45,3 +45,13 @@ def post_complete_message_to_sweep_process(args, is_server=False):
         logging.info(str(len(em.experiments))+" experiments are saved~~~~~~~~~~~~~~~")
         pickle.dump(em, open( "../../experiment_manager.pkl", "wb" ) )
         logging.info("experiment results is saved in ../../experiment_manager.pkl")
+
+
+
+def weight_flatten(model_params):
+    params = []
+    for k, v in model_params.items():
+        params.append(v.view(-1))
+    params = torch.cat(params)
+
+    return params
